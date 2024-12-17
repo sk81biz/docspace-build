@@ -61,8 +61,9 @@ WORKDIR ${SRC_PATH}/server
 COPY --from=src ${SRC_PATH}/server/ .
 
 RUN dotnet build ASC.Web.slnf &&\
-    dotnet build ASC.Migrations.sln --property:OutputPath=${SRC_PATH}/server/ASC.Migration.Runner/service/ &&\
-    dotnet publish ASC.Web.slnf -p PublishProfile=ReleaseProfile
+    dotnet build ASC.Migrations.sln --property:OutputPath=${SRC_PATH}/publish/services/ASC.Migration.Runner/service/ &&\
+    dotnet publish ASC.Web.slnf -p PublishProfile=ReleaseProfile &&\
+    rm -rf ${SRC_PATH}/server
 
 # nodejs build
 FROM node:22.12.0 AS build-node
@@ -88,7 +89,8 @@ COPY --from=src ${SRC_PATH}/client/ ./client
 WORKDIR ${SRC_PATH}/client
 RUN yarn install &&\
     yarn ${BUILD_ARGS} &&\
-    yarn ${DEPLOY_ARGS}
+    yarn ${DEPLOY_ARGS} &&\
+    rm -rf ${SRC_PATH}/client
 
 # build plugins
 COPY --from=src ${SRC_PATH}/plugins ${SRC_PATH}/plugins
@@ -320,7 +322,6 @@ CMD ["ASC.Files.dll", "ASC.Files"]
 
 ## ASC.Files.Service ##
 FROM dotnetrun AS files_services
-ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
 WORKDIR ${BUILD_PATH}/products/ASC.Files/service/
 
 COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-entrypoint.py ./docker-entrypoint.py
@@ -414,7 +415,7 @@ RUN addgroup --system --gid 107 onlyoffice && \
 USER onlyoffice
 WORKDIR ${BUILD_PATH}/services/ASC.Migration.Runner/
 COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-migration-entrypoint.sh ./docker-migration-entrypoint.sh
-COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/server/ASC.Migration.Runner/service/ .
+COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/services/ASC.Migration.Runner/service/ .
 
 ENTRYPOINT ["./docker-migration-entrypoint.sh"]
 
