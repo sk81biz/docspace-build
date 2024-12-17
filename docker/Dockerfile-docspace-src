@@ -1,0 +1,43 @@
+ARG SRC_PATH="/app/onlyoffice/src"
+ARG BUILD_PATH="/var/www"
+ARG DOTNET_SDK="mcr.microsoft.com/dotnet/sdk:9.0"
+ARG DOTNET_RUN="mcr.microsoft.com/dotnet/aspnet:9.0"
+
+# Image resources
+FROM python:3.12-slim AS src
+ARG GIT_BRANCH="master"
+ARG SRC_PATH
+ARG BUILD_PATH
+ARG PRODUCT_VERSION=0.0.0
+ARG BUILD_NUMBER=0
+ARG DEBUG_INFO="true"
+
+RUN set -eux; \
+        apt-get update; \
+        apt-get install -y --no-install-recommends \
+        git ; \
+        rm -rf /var/lib/apt/lists/*
+
+ADD https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/git/refs/heads/${GIT_BRANCH} version.json
+RUN git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/docspace-plugins.git ${SRC_PATH}/plugin       
+RUN git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/ASC.Web.Campaigns.git ${SRC_PATH}/campaigns 
+
+COPY ./DocSpace-server/ ${SRC_PATH}/server/
+COPY ./DocSpace-client/ ${SRC_PATH}/client/
+COPY ./DocSpace-buildtools/ ${SRC_PATH}/buildtools/
+
+WORKDIR ${SRC_PATH}/buildtools/config
+RUN <<EOF
+    mkdir -p /app/onlyoffice/config/ && \
+    ls | grep -v "test" | grep -v "\.dev\." | grep -v "nginx" | xargs cp -t /app/onlyoffice/config/
+    cp *.config /app/onlyoffice/config/
+    cd ${SRC_PATH}
+    mkdir -p /etc/nginx/conf.d && cp -f buildtools/config/nginx/onlyoffice*.conf /etc/nginx/conf.d/
+    mkdir -p /etc/nginx/includes/ && cp -f buildtools/config/nginx/includes/onlyoffice*.conf /etc/nginx/includes/ && cp -f buildtools/config/nginx/includes/server-*.conf /etc/nginx/includes/
+    sed -i "s/\"number\".*,/\"number\": \"${PRODUCT_VERSION}.${BUILD_NUMBER}\",/g" /app/onlyoffice/config/appsettings.json
+    sed -e 's/#//' -i /etc/nginx/conf.d/onlyoffice.conf
+    if [ "$DEBUG_INFO" = true ]; then
+        pip install -r ${SRC_PATH}/buildtools/requirements.txt --break-system-packages
+        python3 ${SRC_PATH}/buildtools/debuginfo.py
+    fi 
+EOF
