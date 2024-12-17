@@ -7,9 +7,7 @@ on:
       - 'release/v*'
       - 'master'
       - 'develop'
-    paths:
-      - '/docker/**'
-      
+          
   workflow_dispatch:
 
 env:
