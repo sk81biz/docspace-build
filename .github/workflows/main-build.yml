@@ -11,7 +11,7 @@ on:
 
 env:
   DOCKER_PATH: "/docker"
-  REPO: "sk81biz"
+  REPO: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKER_IMAGE_PREFIX: "4testing-docspace"
   DOCKERFILE: "Dockerfile.app"
 
