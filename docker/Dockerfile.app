@@ -322,14 +322,7 @@ CMD ["ASC.Files.dll", "ASC.Files"]
 FROM dotnetrun AS files_services
 ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
 WORKDIR ${BUILD_PATH}/products/ASC.Files/service/
-USER root
-RUN  echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee /etc/apt/sources.list && \
-    apt-key adv --keyserver keys.gnupg.net --recv-keys 3B4FE6ACC0B21F32 && \
-    apt-key adv --keyserver keys.gnupg.net --recv-keys 871920D1991BC93C && \
-    apt-get -y update && \
-    apt-get install -yq libssl1.1 && \
-    rm -rf /var/lib/apt/lists/*
-USER onlyoffice
+
 COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-entrypoint.py ./docker-entrypoint.py
 COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/services/ASC.Files.Service/service/ .
 COPY --from=onlyoffice/ffvideo:6.0.0 --chown=onlyoffice:onlyoffice /usr/local /usr/local/
