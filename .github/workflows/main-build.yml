@@ -50,6 +50,7 @@ jobs:
       - name: Build 4testing
         id: build
         run: |
+          echo ${REPO}
           cd .${DOCKER_PATH}
           if [ "${{ github.GITHUB_REF_NAME }}" = "develop" ]; then
             PRODUCT_VERSION="develop"
