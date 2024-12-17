@@ -24,7 +24,7 @@ jobs:
         platform: 
           - linux/amd64
           - linux/arm64
-        branch: ${{ github.event.client_payload.branches }}
+        
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -51,7 +51,7 @@ jobs:
         id: build
         run: |
           cd .${DOCKER_PATH}
-          if [ "${{ matrix.branch }}" = "develop" ]; then
+          if [ "${{ github.head_ref }}" = "develop" ]; then
             PRODUCT_VERSION="develop"
             DOCKER_TAG=${PRODUCT_VERSION}.${{ github.run_number }}
           else
