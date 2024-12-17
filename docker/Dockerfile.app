@@ -63,7 +63,7 @@ COPY --from=src ${SRC_PATH}/server/ .
 RUN dotnet build ASC.Web.slnf &&\
     dotnet build ASC.Migrations.sln --property:OutputPath=${SRC_PATH}/publish/services/ASC.Migration.Runner/service/ &&\
     dotnet publish ASC.Web.slnf -p PublishProfile=ReleaseProfile &&\
-    rm -rf ${SRC_PATH}/server
+    rm -rf ${SRC_PATH}/server/*
 
 # nodejs build
 FROM node:22.12.0 AS build-node
@@ -90,7 +90,7 @@ WORKDIR ${SRC_PATH}/client
 RUN yarn install &&\
     yarn ${BUILD_ARGS} &&\
     yarn ${DEPLOY_ARGS} &&\
-    rm -rf ${SRC_PATH}/client
+    rm -rf ${SRC_PATH}/client/*
 
 # build plugins
 COPY --from=src ${SRC_PATH}/plugins ${SRC_PATH}/plugins
