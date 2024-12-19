@@ -323,10 +323,25 @@ CMD ["ASC.Files.dll", "ASC.Files"]
 ## ASC.Files.Service ##
 FROM dotnetrun AS files_services
 WORKDIR ${BUILD_PATH}/products/ASC.Files/service/
+USER root
 
 COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-entrypoint.py ./docker-entrypoint.py
 COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/services/ASC.Files.Service/service/ .
 COPY --from=onlyoffice/ffvideo:6.0.0 --chown=onlyoffice:onlyoffice /usr/local /usr/local/
+COPY --from=onlyoffice/ffvideo:6.0.0 --chown=onlyoffice:onlyoffice /usr/lib/ /tmp/usr/lib/
+
+RUN <<EOF
+    #!/bin/bash
+    set -xe
+    ARCH_LINUX=$(lscpu | grep Architecture | awk '{print $2}')
+    for FILE in $(ls /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/ | grep lib); do
+	if [ ! -f /usr/lib/${ARCH_LINUX}-linux-gnu/${FILE} ]; then
+		cp /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/${FILE} /usr/lib/${ARCH_LINUX}-linux-gnu/
+	fi
+    done
+    rm -rf /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/*
+EOF
+USER onlyoffice
 
 CMD ["ASC.Files.Service.dll", "ASC.Files.Service", "core:eventBus:subscriptionClientName=asc_event_bus_files_service_queue"]
 
