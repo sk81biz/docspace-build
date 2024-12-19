@@ -331,19 +331,23 @@ COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/servi
 COPY --from=onlyoffice/ffvideo:6.0.0 --chown=onlyoffice:onlyoffice /usr/local /usr/local/
 COPY --from=onlyoffice/ffvideo:6.0.0 --chown=onlyoffice:onlyoffice /usr/lib/ /tmp/usr/lib/
 
-RUN set -xe; \
-    ARCH_LINUX=$(lscpu | grep Architecture | awk '{print $2}'); \
-    if [ "${ARCH_LINUX}" == "x86_64" ] ; then \
-      for FILE in $(ls /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/ | grep lib); do \
-	    if [ ! -f /usr/lib/${ARCH_LINUX}-linux-gnu/${FILE} ]; then \
-		  cp -rf /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/${FILE} /usr/lib/${ARCH_LINUX}-linux-gnu/; \
-	    fi \
-      done \
-    fi \
-    if [ "${ARCH_LINUX}" == "aarch64" ] ; then \
-      cp -r /tmp/usr/lib/* /usr/lib/; \ 
-    fi \
-    rm -rf /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/* 
+RUN <<EOF
+    #!/bin/bash
+    set -xe
+    ARCH_LINUX=$(lscpu | grep Architecture | awk '{print $2}')
+    if [ "$ARCH_LINUX" = "x86_64" ] ; then
+      for FILE in $(ls /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/ | grep lib); do
+            if [ ! -f /usr/lib/${ARCH_LINUX}-linux-gnu/${FILE} ]; then
+                  cp -rf /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/${FILE} /usr/lib/${ARCH_LINUX}-linux-gnu/
+            fi
+      done
+    fi
+    if [ "$ARCH_LINUX" = "aarch64" ] ; then
+      cp -r /tmp/usr/lib/* /usr/lib/
+    fi
+    rm -rf /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/*
+EOF
+
 USER onlyoffice
 
 CMD ["ASC.Files.Service.dll", "ASC.Files.Service", "core:eventBus:subscriptionClientName=asc_event_bus_files_service_queue"]
