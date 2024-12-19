@@ -335,12 +335,8 @@ RUN <<EOF
     #!/bin/bash
     set -xe
     ARCH_LINUX=$(lscpu | grep Architecture | awk '{print $2}')
-    for FILE in $(ls /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/ | grep lib); do
-	if [ ! -f /usr/lib/${ARCH_LINUX}-linux-gnu/${FILE} ]; then
-		cp -rf /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/${FILE} /usr/lib/${ARCH_LINUX}-linux-gnu/
-	fi
-    done
-    rm -rf /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/*
+   	cp -rfu /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/* /usr/lib/${ARCH_LINUX}-linux-gnu/
+	rm -rf /tmp/usr/lib/${ARCH_LINUX}-linux-gnu/*
 EOF
 USER onlyoffice
 
