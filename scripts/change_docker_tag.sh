@@ -56,16 +56,16 @@ while [ "$1" != "" ]; do
 done
 
 # Get docker images
-arrayImagesName=($(docker image ls | grep "${DOCKER_TAG_OLD}" | grep "${DOCKER_IMAGE_PREFIX}" | grep "${OLD_REPO}" | awk '{print $1}' ))
+arrayImagesName=($(docker image ls | grep "${DOCKER_TAG_OLD}" | grep "${DOCKER_IMAGE_PREFIX}" | grep "${OLD_REPO}" | awk '{print $1}'  | sed -re "s/${OLD_REPO}\///" ))
 
 # Modify docker image tag
 for i in ${!arrayImagesName[@]}; do
-    echo "== List items for chenges ==" 
-    echo "${arrayImagesName[$i]}:${DOCKER_TAG_OLD}"
+    echo "== Image for chenge ==" 
+    echo "${OLD_REPO}/${arrayImagesName[$i]}:${DOCKER_TAG_OLD}"
     echo "== Commited chenges result =="
-    echo "${arrayImagesName[$i]}:${DOCKER_TAG_NEW}"
+    echo "${NEW_REPO}/${arrayImagesName[$i]}:${DOCKER_TAG_NEW}"
     if [ "$MODIFY" = true ] ; then   
-        docker image tag ${arrayImagesName[$i]}:${DOCKER_TAG_OLD} ${arrayImagesName[$i]}:${DOCKER_TAG_NEW}
+        docker image tag ${OLD_REPO}/${arrayImagesName[$i]}:${DOCKER_TAG_OLD} ${NEW_REPO}/${arrayImagesName[$i]}:${DOCKER_TAG_NEW}
         docker image ls | grep ${DOCKER_TAG_NEW}
     fi
 done
