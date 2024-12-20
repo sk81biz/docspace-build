@@ -66,6 +66,6 @@ for i in ${!arrayImagesName[@]}; do
     echo "${NEW_REPO}/${arrayImagesName[$i]}:${DOCKER_TAG_NEW}"
     if [ "$MODIFY" = true ] ; then   
         docker image tag ${OLD_REPO}/${arrayImagesName[$i]}:${DOCKER_TAG_OLD} ${NEW_REPO}/${arrayImagesName[$i]}:${DOCKER_TAG_NEW}
-        docker image ls | grep ${DOCKER_TAG_NEW}
+        docker image ls | grep ${NEW_REPO}/${arrayImagesName[$i]}:${DOCKER_TAG_NEW}
     fi
 done
