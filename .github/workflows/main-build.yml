@@ -68,7 +68,6 @@ jobs:
           --set *.platform=linux/amd64 \
           --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
           --set *.args.BUILD_NUMBER=${{github.run_number}} \
-          --set *.target build-dotnet \
           --push
 
           echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
