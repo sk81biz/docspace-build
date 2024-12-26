@@ -6,6 +6,8 @@ on:
       - 'hotfix/v*'
       - 'release/v*'
       - 'develop'
+    paths:
+      - '.github/workflows/docker-build-test.yml'
           
   workflow_dispatch:
 
@@ -13,7 +15,8 @@ env:
   DOCKER_PATH: "/docker"
   REPO: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKER_IMAGE_PREFIX: "4testing-docspace"
-  DOCKERFILE: "Dockerfile.app"
+  DOCKERFILE: "./docker/Dockerfile.app"
+  DOCKER_TAG: develop
 
 jobs:
 
@@ -66,14 +69,13 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           push: true
           target: src-test
-          file: ./docker/Dockerfile.app
-          tags: sk81biz/4testing-docspace-file-services:1.0.1
+          file: ${{ env.DOCKERFILE }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/4testing-docspace-src:${{ env.DOCKER_TAG }}
           build-args: GIT_BRANCH=develop
 
-     
       # docker buildx bake -f build.yml \
       #     --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
       #     --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
