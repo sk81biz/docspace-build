@@ -50,7 +50,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           
-      - name: Build 4testing
+      - name: Show prebuild free space 
         id: build
         run: |
           cd .${DOCKER_PATH}
@@ -75,6 +75,14 @@ jobs:
           file: ${{ env.DOCKERFILE }}
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/4testing-docspace-src:${{ env.DOCKER_TAG }}
           build-args: GIT_BRANCH=develop
+      
+      - name: Show free space 
+        id: build
+        run: |
+          df -h
+          docker system info
+          docker image ls
+          docker system df
 
       # docker buildx bake -f build.yml \
       #     --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
