@@ -23,7 +23,7 @@ jobs:
       matrix:
         platform: 
           - linux/amd64
-       #   - linux/arm64
+          - linux/arm64
         
     steps:
       - name: Checkout
@@ -50,13 +50,14 @@ jobs:
       - name: Build 4testing
         id: build
         run: |
+          cd .${DOCKER_PATH}
           DOCKER_TAG=develop.${{ github.run_number }}
           export DOCKER_TAG
           ls -la
           df -h
           pwd
           docker buildx build . -f "Dockerfile.app" -t sk81biz/4testing-docspace-file-services:1.0.1 --build-arg GIT_BRANCH="develop"\
-          --platform="linux/amd64,linux/arm64" --target src-test --push
+          --platform=${{ matrix.platform } --target src-test --push
 
           echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
         shell: bash
