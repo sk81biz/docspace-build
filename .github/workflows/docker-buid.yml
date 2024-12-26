@@ -71,7 +71,7 @@ jobs:
           target: src-test
           file: ./docker/Dockerfile.app
           tags: sk81biz/4testing-docspace-file-services:1.0.1
-          build-args: GIT_BRANCH="develop"
+          build-args: GIT_BRANCH=develop
 
      
       # docker buildx bake -f build.yml \
