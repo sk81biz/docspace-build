@@ -53,6 +53,7 @@ jobs:
           DOCKER_TAG=develop.${{ github.run_number }}
           export DOCKER_TAG
           df -h
+          pwd
           docker buildx build . -f "Dockerfile.app" -t sk81biz/4testing-docspace-file-services:1.0.1 --build-arg GIT_BRANCH="develop"\
           --platform="linux/amd64,linux/arm64" --target src-test --push
 
