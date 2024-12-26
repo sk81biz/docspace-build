@@ -57,7 +57,7 @@ jobs:
           df -h
           pwd
           docker buildx build . -f "Dockerfile.app" -t sk81biz/4testing-docspace-file-services:1.0.1 --build-arg GIT_BRANCH="develop"\
-          --platform=${{ matrix.platform } --target src-test --push
+          --platform=${{ matrix.platform }} --target src-test --push
 
           echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
         shell: bash
