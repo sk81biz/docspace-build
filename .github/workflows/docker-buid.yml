@@ -5,7 +5,7 @@ on:
     branches:
       - 'hotfix/v*'
       - 'release/v*'
-    #  - 'develop'
+      - 'develop'
           
   workflow_dispatch:
 
@@ -50,25 +50,11 @@ jobs:
       - name: Build 4testing
         id: build
         run: |
-          echo ${REPO}
-          cd .${DOCKER_PATH}
-          if [ "${{ github.GITHUB_REF_NAME }}" = "develop" ]; then
-            PRODUCT_VERSION="develop"
-            DOCKER_TAG=${PRODUCT_VERSION}.${{ github.run_number }}
-          else
-            PRODUCT_VERSION=$(echo "${{  github.GITHUB_REF_NAME }}" | sed '/^release\b\|^hotfix\b\|^feature\b/s/release.*\/\|hotfix.*\/\|feature.*\///; s/-git-action$//; s/^v//') 
-            DOCKER_TAG=${PRODUCT_VERSION}.${{github.run_number}}
-          fi
+          df -h
           DOCKER_TAG=develop.${{ github.run_number }}
           export DOCKER_TAG
-          docker buildx bake -f build.yml \
-          --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
-          --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
-          --set *.args.BUILD_NUMBER=${BUILD_NUMBER} \
-          --set *.platform=linux/amd64 \
-          --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
-          --set *.args.BUILD_NUMBER=${{github.run_number}} \
-          --push
+          docker buildx build -f "Dockerfile.app" -t sk81biz/4testing-docspace-file-services:1.0.1 --build-arg GIT_BRANCH="develop" --target src-test\ 
+          --push .
 
           echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
         shell: bash
