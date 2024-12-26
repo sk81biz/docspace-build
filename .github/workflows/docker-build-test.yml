@@ -76,13 +76,13 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/4testing-docspace-src:${{ env.DOCKER_TAG }}
           build-args: GIT_BRANCH=develop
       
-      - name: Show free space 
-        id: end-statistics
-        run: |
-          df -h
-          docker system info
-          docker image ls
-          docker system df
+      # - name: Show free space 
+      #   id: end-statistics
+      #   run: |
+      #     df -h
+      #     docker system info
+      #     docker image ls
+      #     docker system df
 
       # docker buildx bake -f build.yml \
       #     --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
