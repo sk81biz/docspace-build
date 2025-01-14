@@ -4,12 +4,12 @@ ARG DOTNET_SDK="mcr.microsoft.com/dotnet/sdk:9.0"
 ARG DOTNET_RUN="mcr.microsoft.com/dotnet/aspnet:9.0"
 
 # Image resources
-FROM sk81biz/4testing-docspace-develop-src:1.0.0 AS src
+FROM sk81biz/4testing-docspace-develop-src:1.0.0 AS src-test
 ARG SRC_PATH
 ARG BUILD_PATH
 WORKDIR ${SRC_PATH}
 
-FROM python:3.12-slim AS src-test
+FROM python:3.12-slim AS src
 ARG GIT_BRANCH="master"
 ARG SRC_PATH
 ARG BUILD_PATH
