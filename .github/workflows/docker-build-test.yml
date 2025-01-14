@@ -84,7 +84,7 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform }}
-          target: src-test
+          target: build-dotnet
           file: ${{ env.DOCKERFILE }}
           build-args: GIT_BRANCH=develop
           outputs: type=image,name=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME_SRC }},push-by-digest=true,name-canonical=true,push=true
