@@ -80,6 +80,7 @@ jobs:
       -
         name: Build and push
         uses: docker/build-push-action@v6
+        id: build-src
         with:
           context: .
           platforms: ${{ matrix.platform }}
@@ -91,7 +92,7 @@ jobs:
         name: Export digest
         run: |
           mkdir -p /tmp/digests/${{ env.IMAGE_NAME_SRC }}
-          digest="${{ steps.build-dotnetrun.outputs.digest }}"
+          digest="${{ steps.build-src.outputs.digest }}"
           touch "/tmp/digests/${{ env.IMAGE_NAME_SRC }}/${digest#sha256:}"
       -
         name: Upload digest
