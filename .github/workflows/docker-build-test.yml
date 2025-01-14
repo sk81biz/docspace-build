@@ -127,8 +127,8 @@ jobs:
         name: Create ${{ env.IMAGE_NAME_SRC }} list and push
         working-directory: /tmp/digests/${{ env.IMAGE_NAME_SRC }}
         run: |
-          docker buildx imagetools create -t ${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME_SRC }}:${{ env.TAG }} \
-            $(printf '${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME_SRC }}@sha256:%s ' *)
+          docker buildx imagetools create -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME_SRC }}:${{ env.TAG }} \
+            $(printf '${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME_SRC }}@sha256:%s ' *)
 
 
       # - name: Show free space 
