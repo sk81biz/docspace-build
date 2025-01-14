@@ -109,12 +109,11 @@ jobs:
     needs:
       - build
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Download digests
+        uses: actions/download-artifact@v3
         with:
-          ref: ${{ matrix.branch }}
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+          name: digests
+          path: /tmp/digests
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v3
@@ -127,6 +126,7 @@ jobs:
         name: Create ${{ env.IMAGE_NAME_SRC }} list and push
         working-directory: /tmp/digests/${{ env.IMAGE_NAME_SRC }}
         run: |
+          ls -la /tmp/digests/
           docker buildx imagetools create -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME_SRC }}:${{ env.TAG }} \
             $(printf '${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME_SRC }}@sha256:%s ' *)
 
