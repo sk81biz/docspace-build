@@ -51,6 +51,8 @@ jobs:
       - name: Build 4testing
         id: build
         run: |
+          echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+          echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
           echo ${REPO}
           cd .${DOCKER_PATH}
           if [ "${{ github.GITHUB_REF_NAME }}" = "develop" ]; then
