@@ -86,10 +86,25 @@ COPY --from=src ${SRC_PATH}/buildtools/config ./buildtools/config
 COPY --from=src ${SRC_PATH}/client/ ./client
 
 WORKDIR ${SRC_PATH}/client
-RUN yarn install &&\
-    yarn ${BUILD_ARGS} &&\
-    yarn ${DEPLOY_ARGS} &&\
-    rm -rf ${SRC_PATH}/client/*
+RUN <<EOF
+#!/bin/bash
+yarn install
+node common/scripts/before-build.js
+
+CLIENT_PACKAGES+=("@docspace/client")
+CLIENT_PACKAGES+=("@docspace/login")
+CLIENT_PACKAGES+=("@docspace/doceditor")
+CLIENT_PACKAGES+=("@docspace/management")
+
+for PKG in ${CLIENT_PACKAGES[@]}; do
+  yarn workspace ${PKG} ${BUILD_ARGS} $([[ "${PKG}" =~ (client|management) ]] && echo "--env lint=false")
+  yarn workspace ${PKG} ${DEPLOY_ARGS}
+done
+
+cp -rf public "${SRC_PATH}/publish/web/"
+node common/scripts/minify-common-locales.js
+rm -rf ${SRC_PATH}/client/*
+EOF
 
 # build plugins
 COPY --from=src ${SRC_PATH}/plugins ${SRC_PATH}/plugins
