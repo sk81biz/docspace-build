@@ -132,20 +132,21 @@ ENV SRC_PATH=${SRC_PATH}
 # add defualt user and group for no-root run
 RUN mkdir -p /var/log/onlyoffice && \
     mkdir -p /app/onlyoffice/data && \
-    addgroup --system --gid 107 onlyoffice && \
-    adduser -uid 104 --quiet --home /var/www/onlyoffice --system --gid 107 onlyoffice && \
-    chown onlyoffice:onlyoffice /app/onlyoffice -R && \
-    chown onlyoffice:onlyoffice /var/log -R && \
-    chown onlyoffice:onlyoffice /var/www -R && \
     apt-get -y update && \
     apt-get install -yq \
         sudo \
+        adduser \
         nano \
         curl \
         vim \
         python3-pip \
         libgdiplus && \
         pip3 install --upgrade --break-system-packages jsonpath-ng multipledispatch netaddr netifaces && \
+        addgroup --system --gid 107 onlyoffice && \
+        adduser -uid 104 --quiet --home /var/www/onlyoffice --system --gid 107 onlyoffice && \
+        chown onlyoffice:onlyoffice /app/onlyoffice -R && \
+        chown onlyoffice:onlyoffice /var/log -R && \
+        chown onlyoffice:onlyoffice /var/www -R && \
         rm -rf /var/lib/apt/lists/*
     
 COPY --from=src --chown=onlyoffice:onlyoffice /app/onlyoffice/config/* /app/onlyoffice/config/

@@ -74,7 +74,7 @@ jobs:
           echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
         shell: bash
 
-     
+      # test
       # docker buildx bake -f build.yml \
       #     --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
       #     --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
