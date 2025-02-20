@@ -442,15 +442,9 @@ ENTRYPOINT ["./docker-healthchecks-entrypoint.sh"]
 CMD ["ASC.Web.HealthChecks.UI.dll", "ASC.Web.HealthChecks.UI"]
 
 ## ASC.Migration.Runner ##
-FROM $DOTNET_RUN AS onlyoffice-migration-runner
-ARG BUILD_PATH
-ARG SRC_PATH 
-ENV BUILD_PATH=${BUILD_PATH}
-ENV SRC_PATH=${SRC_PATH}
-RUN addgroup --system --gid 107 onlyoffice && \
-    adduser -uid 104 --quiet --home /var/www/onlyoffice --system --gid 107 onlyoffice
-USER onlyoffice
+FROM dotnetrun AS onlyoffice-migration-runner
 WORKDIR ${BUILD_PATH}/services/ASC.Migration.Runner/
+
 COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-migration-entrypoint.sh ./docker-migration-entrypoint.sh
 COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/services/ASC.Migration.Runner/service/ .
 
