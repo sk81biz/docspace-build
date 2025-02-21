@@ -357,7 +357,7 @@ USER root
 
 COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-entrypoint.py ./docker-entrypoint.py
 COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/services/ASC.Files.Service/service/ .
-COPY --from=oonlyoffice/ffvideo:7.1 --chown=onlyoffice:onlyoffice /app/src/ /
+COPY --from=onlyoffice/ffvideo:7.1 --chown=onlyoffice:onlyoffice /app/src/ /
 
 RUN <<EOF
     #!/bin/bash
