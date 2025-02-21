@@ -363,6 +363,7 @@ RUN <<EOF
     #!/bin/bash
     set -xe
     ARCH_LINUX=$(lscpu | grep Architecture | awk '{print $2}')
+    echo "--- ADD necessary lib for arh: ${ARCH_LINUX} ---" && \ 
     if [ "$ARCH_LINUX" = "x86_64" ] ; then
         apt update && \
         apt install -y \
@@ -370,10 +371,18 @@ RUN <<EOF
             libdrm2 \
             libv4l-0t64 \
             libplacebo-dev \
-            ocl-icd-opencl-dev && \
-            rm -rf /var/lib/apt/lists/* \
-            /tmp/*
+            libxcb-shape0 \
+            ocl-icd-opencl-dev
+            
     fi
+    if [ "$ARCH_LINUX" = "aarch64" ] ; then
+        apt update && \
+        apt install -y \
+            libasound2t64 \
+            libv4l-0t64
+    fi 
+    rm -rf /var/lib/apt/lists/* \
+    /tmp/*
 EOF
 
 USER onlyoffice
