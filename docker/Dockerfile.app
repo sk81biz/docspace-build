@@ -363,7 +363,7 @@ RUN <<EOF
     #!/bin/bash
     set -xe
     ARCH_LINUX=$(lscpu | grep Architecture | awk '{print $2}')
-    echo "--- ADD necessary lib for arh: ${ARCH_LINUX} ---" && \ 
+    echo "--- ADD necessary lib for arh: ${ARCH_LINUX} ---"
     if [ "$ARCH_LINUX" = "x86_64" ] ; then
         apt update && \
         apt install -y \
@@ -372,8 +372,7 @@ RUN <<EOF
             libv4l-0t64 \
             libplacebo-dev \
             libxcb-shape0 \
-            ocl-icd-opencl-dev
-            
+            ocl-icd-opencl-dev 
     fi
     if [ "$ARCH_LINUX" = "aarch64" ] ; then
         apt update && \
