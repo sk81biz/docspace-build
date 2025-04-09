@@ -1,4 +1,11 @@
 services: 
+  onlyoffice-sdk:
+    build:
+      context:  ./
+      dockerfile: "${DOCKERFILE}"
+      target: sdk
+    image: "${REPO}/${DOCKER_IMAGE_PREFIX}-sdk:${DOCKER_TAG}"
+  
   onlyoffice-backup-background-tasks:
     build:
       context: ./
