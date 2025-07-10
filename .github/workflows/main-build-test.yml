@@ -1,11 +1,13 @@
-name: DocSpace services build and push
-
+name: DocSpace main test main-buil-test.yml
 on:
   push:
     branches:
       - 'hotfix/v*'
       - 'release/v*'
-    #  - 'develop'
+      - 'develop'
+    paths:
+      - '.github/workflows/main-build-test.yml'
+      - '/docker/Dockerfile.app'
           
   workflow_dispatch:
 
@@ -23,7 +25,7 @@ jobs:
       matrix:
         platform: 
           - linux/amd64
-       #   - linux/arm64
+      #    - linux/arm64
         
     steps:
       - name: Checkout
@@ -38,7 +40,7 @@ jobs:
         
       - name: Free Disk Space
         run: |
-          sudo rm -rf /usr/local/lib/android /opt/ghc
+          curl -fsSL https://raw.githubusercontent.com/apache/arrow/refs/heads/main/ci/scripts/util_free_space.sh | bash
           sudo docker image prune --all --force
 
       - name: Login to DockerHub
@@ -50,6 +52,8 @@ jobs:
       - name: Build 4testing
         id: build
         run: |
+          echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+          echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
           echo ${REPO}
           cd .${DOCKER_PATH}
           if [ "${{ github.GITHUB_REF_NAME }}" = "develop" ]; then
@@ -62,18 +66,16 @@ jobs:
           DOCKER_TAG=develop.${{ github.run_number }}
           export DOCKER_TAG
           docker buildx bake -f build.yml \
-          --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
+          --set *.args.GIT_BRANCH="develop" \
           --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
           --set *.args.BUILD_NUMBER=${BUILD_NUMBER} \
-          --set *.platform=linux/amd64 \
-          --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
-          --set *.args.BUILD_NUMBER=${{github.run_number}} \
+          --set *.platform=${{ matrix.platform }} \
           --push
 
           echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
         shell: bash
 
-     
+      # test 04
       # docker buildx bake -f build.yml \
       #     --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
       #     --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \

@@ -1,15 +1,10 @@
 ARG SRC_PATH="/app/onlyoffice/src"
 ARG BUILD_PATH="/var/www"
 ARG DOTNET_SDK="mcr.microsoft.com/dotnet/sdk:9.0"
-ARG DOTNET_RUN="mcr.microsoft.com/dotnet/aspnet:9.0"
+ARG DOTNET_RUN="mcr.microsoft.com/dotnet/aspnet:9.0-noble"
 
 # Image resources
-FROM sk81biz/4testing-docspace-develop-src:1.0.0 AS src
-ARG SRC_PATH
-ARG BUILD_PATH
-WORKDIR ${SRC_PATH}
-
-FROM python:3.12-slim AS src-test
+FROM python:3.12-slim AS src
 ARG GIT_BRANCH="master"
 ARG SRC_PATH
 ARG BUILD_PATH
@@ -24,20 +19,16 @@ RUN set -eux; \
         rm -rf /var/lib/apt/lists/*
 
 ADD https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/git/refs/heads/${GIT_BRANCH} version.json
-#RUN git clone -b ${GIT_BRANCH} https://github.com/ONLYOFFICE/DocSpace-buildtools.git ${SRC_PATH}/buildtools && \
-#    git clone --recurse-submodules -b ${GIT_BRANCH} https://github.com/ONLYOFFICE/DocSpace-Server.git ${SRC_PATH}/server && \
-#    git clone -b ${GIT_BRANCH} https://github.com/ONLYOFFICE/DocSpace-Client.git ${SRC_PATH}/client && \
-#    git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/docspace-plugins.git ${SRC_PATH}/plugins && \
-#    git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/ASC.Web.Campaigns.git ${SRC_PATH}/campaigns
-RUN git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/docspace-plugins.git ${SRC_PATH}/plugins     
-RUN git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/ASC.Web.Campaigns.git ${SRC_PATH}/campaigns 
-
-COPY ./DocSpace-server/ ${SRC_PATH}/server/
-COPY ./DocSpace-client/ ${SRC_PATH}/client/
-COPY ./DocSpace-buildtools/ ${SRC_PATH}/buildtools/
+RUN echo "--- clone resources ---" && \
+    git clone -b ${GIT_BRANCH} --depth 1  https://github.com/ONLYOFFICE/DocSpace-buildtools.git ${SRC_PATH}/buildtools && \
+    git clone --recurse-submodules -b ${GIT_BRANCH} --depth 1  https://github.com/ONLYOFFICE/DocSpace-Server.git ${SRC_PATH}/server && \
+    git clone -b ${GIT_BRANCH} --depth 1  https://github.com/ONLYOFFICE/DocSpace-Client.git ${SRC_PATH}/client && \
+    git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/docspace-plugins.git ${SRC_PATH}/plugins && \
+    git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/ASC.Web.Campaigns.git ${SRC_PATH}/campaigns
 
 WORKDIR ${SRC_PATH}/buildtools/config
 RUN <<EOF
+    echo "--- customize config base files ---" && \
     mkdir -p /app/onlyoffice/config/ && \
     ls | grep -v "test" | grep -v "\.dev\." | grep -v "nginx" | xargs cp -t /app/onlyoffice/config/
     cp *.config /app/onlyoffice/config/
@@ -47,6 +38,7 @@ RUN <<EOF
     sed -i "s/\"number\".*,/\"number\": \"${PRODUCT_VERSION}.${BUILD_NUMBER}\",/g" /app/onlyoffice/config/appsettings.json
     sed -e 's/#//' -i /etc/nginx/conf.d/onlyoffice.conf
     if [ "$DEBUG_INFO" = true ]; then
+    echo "--- add customized debuginfo ---" && \
         pip install -r ${SRC_PATH}/buildtools/requirements.txt --break-system-packages
         python3 ${SRC_PATH}/buildtools/debuginfo.py
     fi 
@@ -60,11 +52,13 @@ ARG SRC_PATH
 WORKDIR ${SRC_PATH}/server
 COPY --from=src ${SRC_PATH}/server/ .
 
-RUN dotnet build ASC.Web.slnf &&\
-    dotnet build ASC.Migrations.sln --property:OutputPath=${SRC_PATH}/server/ASC.Migration.Runner/service/ &&\
-    dotnet publish ASC.Web.slnf -p PublishProfile=ReleaseProfile
+RUN echo "--- build/publishh docspace-server .net 9.0 ---" && \
+    dotnet build ASC.Web.slnf && \
+    dotnet build ASC.Migrations.sln --property:OutputPath=${SRC_PATH}/publish/services/ASC.Migration.Runner/service/ && \
+    dotnet publish ASC.Web.slnf -p PublishProfile=ReleaseProfile && \
+    rm -rf ${SRC_PATH}/server/*
 
-# nodejs build
+# node build
 FROM node:22.12.0 AS build-node
 ARG SRC_PATH
 ARG BUILD_ARGS="build"
@@ -75,8 +69,10 @@ WORKDIR ${SRC_PATH}/server
 COPY --from=src ${SRC_PATH}/server/common/ASC.Socket.IO ./common/ASC.Socket.IO
 COPY --from=src ${SRC_PATH}/server/common/ASC.SsoAuth ./common/ASC.SsoAuth
 
-RUN cd ${SRC_PATH}/server/common/ASC.Socket.IO &&\
+RUN echo "--- build/publish ASC.Socket.IO ---" && \ 
+    cd ${SRC_PATH}/server/common/ASC.Socket.IO &&\
     yarn install --immutable &&\
+    echo "--- build/publish ASC.SsoAuth ---" && \ 
     cd ${SRC_PATH}/server/common/ASC.SsoAuth &&\
     yarn install --immutable
 
@@ -86,15 +82,36 @@ COPY --from=src ${SRC_PATH}/buildtools/config ./buildtools/config
 COPY --from=src ${SRC_PATH}/client/ ./client
 
 WORKDIR ${SRC_PATH}/client
-RUN yarn install &&\
-    yarn ${BUILD_ARGS} &&\
-    yarn ${DEPLOY_ARGS}
+RUN <<EOF
+#!/bin/bash
+echo "--- build/publish docspace-client node ---" && \
+yarn install
+node common/scripts/before-build.js
+
+CLIENT_PACKAGES+=("@docspace/client")
+CLIENT_PACKAGES+=("@docspace/login")
+CLIENT_PACKAGES+=("@docspace/doceditor")
+CLIENT_PACKAGES+=("@docspace/management")
+
+for PKG in ${CLIENT_PACKAGES[@]}; do
+  echo "--- build/publish ${PKG} ---"
+  yarn workspace ${PKG} ${BUILD_ARGS} $([[ "${PKG}" =~ (client|management) ]] && echo "--env lint=false")
+  yarn workspace ${PKG} ${DEPLOY_ARGS}
+done
+
+echo "--- publish public web files ---" && \
+cp -rf public "${SRC_PATH}/publish/web/"
+echo "--- publish locales ---" && \
+node common/scripts/minify-common-locales.js
+rm -rf ${SRC_PATH}/client/*
+EOF
 
 # build plugins
 COPY --from=src ${SRC_PATH}/plugins ${SRC_PATH}/plugins
 WORKDIR ${SRC_PATH}/buildtools/install/common
 COPY --from=src ${SRC_PATH}/buildtools/install/common/plugins-build.sh ./plugins-build.sh
-RUN bash plugins-build.sh "${SRC_PATH}/plugins"
+RUN echo "--- build/publish plugins ---" && \
+    bash plugins-build.sh "${SRC_PATH}/plugins"
 
 # java build
 FROM maven:3.9 AS java-build
@@ -103,7 +120,8 @@ ARG SRC_PATH
 WORKDIR ${SRC_PATH}/server/common/ASC.Identity/
 COPY --from=src ${SRC_PATH}/server/common/ASC.Identity/ .
 
-RUN mvn -B dependency:go-offline && \
+RUN echo "--- build/publish docspace-server java (ASC.Identity) ---" && \
+    mvn -B dependency:go-offline && \
     mvn clean package -B -DskipTests -pl authorization/authorization-container -am && \
     mvn clean package -B -DskipTests -pl registration/registration-container -am 
 
@@ -114,23 +132,27 @@ ENV BUILD_PATH=${BUILD_PATH}
 ENV SRC_PATH=${SRC_PATH}
     
 # add defualt user and group for no-root run
-RUN mkdir -p /var/log/onlyoffice && \
+RUN echo "--- install runtime aspnet.9 ---" && \
+    mkdir -p /var/log/onlyoffice && \
     mkdir -p /app/onlyoffice/data && \
-    addgroup --system --gid 107 onlyoffice && \
-    adduser -uid 104 --quiet --home /var/www/onlyoffice --system --gid 107 onlyoffice && \
-    chown onlyoffice:onlyoffice /app/onlyoffice -R && \
-    chown onlyoffice:onlyoffice /var/log -R && \
-    chown onlyoffice:onlyoffice /var/www -R && \
     apt-get -y update && \
     apt-get install -yq \
         sudo \
+        adduser \
         nano \
         curl \
         vim \
         python3-pip \
         libgdiplus && \
         pip3 install --upgrade --break-system-packages jsonpath-ng multipledispatch netaddr netifaces && \
-        rm -rf /var/lib/apt/lists/*
+        addgroup --system --gid 107 onlyoffice && \
+        adduser -uid 104 --quiet --home /var/www/onlyoffice --system --gid 107 onlyoffice && \
+        chown onlyoffice:onlyoffice /app/onlyoffice -R && \
+        chown onlyoffice:onlyoffice /var/log -R && \
+        chown onlyoffice:onlyoffice /var/www -R && \
+        echo "--- clean up ---" && \
+        rm -rf /var/lib/apt/lists/* \
+        /tmp/*
     
 COPY --from=src --chown=onlyoffice:onlyoffice /app/onlyoffice/config/* /app/onlyoffice/config/
     
@@ -144,7 +166,8 @@ ARG SRC_PATH
 ENV BUILD_PATH=${BUILD_PATH}
 ENV SRC_PATH=${SRC_PATH}
     
-RUN mkdir -p /var/log/onlyoffice && \
+RUN echo "--- install runtime node.22 ---" && \
+    mkdir -p /var/log/onlyoffice && \
     mkdir -p /app/onlyoffice/data && \
     addgroup --system --gid 107 onlyoffice && \
     adduser -uid 104 --quiet --home /var/www/onlyoffice --system --gid 107 onlyoffice && \
@@ -159,7 +182,10 @@ RUN mkdir -p /var/log/onlyoffice && \
         vim \
         python3-pip && \
         pip3 install --upgrade --break-system-packages jsonpath-ng multipledispatch netaddr netifaces && \
-        rm -rf /var/lib/apt/lists/*
+        echo "--- clean up ---" && \
+        rm -rf \
+        /var/lib/apt/lists/* \
+        /tmp/*
     
     COPY --from=src --chown=onlyoffice:onlyoffice /app/onlyoffice/config/* /app/onlyoffice/config/
     USER onlyoffice
@@ -171,13 +197,18 @@ RUN mkdir -p /var/log/onlyoffice && \
     ARG SRC_PATH
     ENV BUILD_PATH=${BUILD_PATH}
     
-    RUN mkdir -p /var/log/onlyoffice && \
+    RUN echo "--- install runtime eclipse-temurin:21 ---" && \ 
+        mkdir -p /var/log/onlyoffice && \
         mkdir -p /var/www/onlyoffice && \
         addgroup -S -g 107 onlyoffice && \
         adduser -S -u 104 -h /var/www/onlyoffice -G onlyoffice onlyoffice && \
         chown onlyoffice:onlyoffice /var/log -R  && \
         chown onlyoffice:onlyoffice /var/www -R && \
-        apk add --no-cache sudo bash nano curl 
+        apk add --no-cache sudo bash nano curl && \
+        echo "--- clean up ---" && \
+        rm -rf \
+        /var/lib/apt/lists/* \
+        /tmp/*
     
     COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-identity-entrypoint.sh /usr/bin/docker-identity-entrypoint.sh
     USER onlyoffice
@@ -192,7 +223,8 @@ RUN mkdir -p /var/log/onlyoffice && \
         COUNT_WORKER_CONNECTIONS=$COUNT_WORKER_CONNECTIONS \
         MAP_HASH_BUCKET_SIZE=""
     
-    RUN apt-get -y update && \
+    RUN echo "--- customize router openresty service ---" && \
+        apt-get -y update && \
         apt-get install -yq vim && \
         mkdir -p /var/log/nginx/ && \
         addgroup --system --gid 107 onlyoffice && \
@@ -206,7 +238,6 @@ RUN mkdir -p /var/log/onlyoffice && \
         chown -R onlyoffice:onlyoffice /var/log/nginx/
     
     # copy static services files and config values 
-    
     COPY --from=build-node --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/web/client ${BUILD_PATH}/client
     COPY --from=build-node --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/web/public ${BUILD_PATH}/public
     COPY --from=build-node --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/web/editor/.next/static/chunks ${BUILD_PATH}/build/doceditor/static/chunks
@@ -323,16 +354,37 @@ FROM dotnetrun AS files_services
 ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
 WORKDIR ${BUILD_PATH}/products/ASC.Files/service/
 USER root
-RUN  echo "deb http://security.ubuntu.com/ubuntu focal-security main" | tee /etc/apt/sources.list && \
-    apt-key adv --keyserver keys.gnupg.net --recv-keys 3B4FE6ACC0B21F32 && \
-    apt-key adv --keyserver keys.gnupg.net --recv-keys 871920D1991BC93C && \
-    apt-get -y update && \
-    apt-get install -yq libssl1.1 && \
-    rm -rf /var/lib/apt/lists/*
-USER onlyoffice
+
 COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-entrypoint.py ./docker-entrypoint.py
 COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/services/ASC.Files.Service/service/ .
-COPY --from=onlyoffice/ffvideo:6.0.0 --chown=onlyoffice:onlyoffice /usr/local /usr/local/
+COPY --from=onlyoffice/ffvideo:7.1 --chown=onlyoffice:onlyoffice /app/src/ /
+
+RUN <<EOF
+    #!/bin/bash
+    set -xe
+    ARCH_LINUX=$(lscpu | grep Architecture | awk '{print $2}')
+    echo "--- ADD necessary lib for arh: ${ARCH_LINUX} ---"
+    if [ "$ARCH_LINUX" = "x86_64" ] ; then
+        apt update && \
+        apt install -y \
+            libasound2t64 \
+            libdrm2 \
+            libv4l-0t64 \
+            libplacebo-dev \
+            libxcb-shape0 \
+            ocl-icd-opencl-dev 
+    fi
+    if [ "$ARCH_LINUX" = "aarch64" ] ; then
+        apt update && \
+        apt install -y \
+            libasound2t64 \
+            libv4l-0t64
+    fi 
+    rm -rf /var/lib/apt/lists/* \
+    /tmp/*
+EOF
+
+USER onlyoffice
 
 CMD ["ASC.Files.Service.dll", "ASC.Files.Service", "core:eventBus:subscriptionClientName=asc_event_bus_files_service_queue"]
 
@@ -411,17 +463,11 @@ ENTRYPOINT ["./docker-healthchecks-entrypoint.sh"]
 CMD ["ASC.Web.HealthChecks.UI.dll", "ASC.Web.HealthChecks.UI"]
 
 ## ASC.Migration.Runner ##
-FROM $DOTNET_RUN AS onlyoffice-migration-runner
-ARG BUILD_PATH
-ARG SRC_PATH 
-ENV BUILD_PATH=${BUILD_PATH}
-ENV SRC_PATH=${SRC_PATH}
-RUN addgroup --system --gid 107 onlyoffice && \
-    adduser -uid 104 --quiet --home /var/www/onlyoffice --system --gid 107 onlyoffice
-USER onlyoffice
+FROM dotnetrun AS onlyoffice-migration-runner
 WORKDIR ${BUILD_PATH}/services/ASC.Migration.Runner/
+
 COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-migration-entrypoint.sh ./docker-migration-entrypoint.sh
-COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/server/ASC.Migration.Runner/service/ .
+COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/services/ASC.Migration.Runner/service/ .
 
 ENTRYPOINT ["./docker-migration-entrypoint.sh"]
 

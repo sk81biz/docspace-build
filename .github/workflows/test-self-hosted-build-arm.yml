@@ -1,11 +1,12 @@
-name: DocSpace services build and push
-
+name: DocSpace main test main-buil-test.yml
 on:
   push:
     branches:
       - 'hotfix/v*'
       - 'release/v*'
-    #  - 'develop'
+      - 'develop'
+    paths:
+      - '.github/workflows/test-self-hosted-build-arm.yml'
           
   workflow_dispatch:
 
@@ -18,12 +19,12 @@ env:
 jobs:
 
   build:
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     strategy:
       matrix:
         platform: 
           - linux/amd64
-       #   - linux/arm64
+         # - linux/arm64
         
     steps:
       - name: Checkout
@@ -50,6 +51,8 @@ jobs:
       - name: Build 4testing
         id: build
         run: |
+          echo "ACTIONS_RUNNER_DEBUG=true" >> $GITHUB_ENV
+          echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
           echo ${REPO}
           cd .${DOCKER_PATH}
           if [ "${{ github.GITHUB_REF_NAME }}" = "develop" ]; then
@@ -62,12 +65,10 @@ jobs:
           DOCKER_TAG=develop.${{ github.run_number }}
           export DOCKER_TAG
           docker buildx bake -f build.yml \
-          --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
+          --set *.args.GIT_BRANCH="develop" \
           --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
           --set *.args.BUILD_NUMBER=${BUILD_NUMBER} \
-          --set *.platform=linux/amd64 \
-          --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
-          --set *.args.BUILD_NUMBER=${{github.run_number}} \
+          --set *.platform=${{ matrix.platform }} \
           --push
 
           echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
