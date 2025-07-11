@@ -73,6 +73,7 @@ jobs:
           --target ${{ env.TARGET }} \
           --build-arg GIT_BRANCH=${{ env.GIT_BRANCH }} \
           -t sk81biz/4testing-docspace-site-core:latest \
+          --push \
           .
       # - name: Build 4testing
       #   id: build
