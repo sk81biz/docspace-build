@@ -21,6 +21,7 @@ RUN set -eux; \
 ADD https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/git/refs/heads/${GIT_BRANCH} version.json
 RUN <<EOF
 #!/bin/bash
+set -xe
 echo "--- clone resources ---"
 
 GITHUB_REPOS+=("https://github.com/ONLYOFFICE/DocSpace-buildtools.git ${SRC_PATH}/buildtools")
