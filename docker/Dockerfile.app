@@ -37,8 +37,7 @@ git clone -b $(echo "$(git ls-remote --exit-code --heads "${CLIENT_REPO}" "${GIT
 
 git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/docspace-plugins.git ${SRC_PATH}/plugins && \
 git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/ASC.Web.Campaigns.git ${SRC_PATH}/campaigns
-
-<<EOF
+EOF
 
 WORKDIR ${SRC_PATH}/buildtools/config
 RUN <<EOF
