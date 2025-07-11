@@ -19,12 +19,27 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 ADD https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/git/refs/heads/${GIT_BRANCH} version.json
-RUN echo "--- clone resources ---" && \
-    git clone -b ${GIT_BRANCH} --depth 30  https://github.com/ONLYOFFICE/DocSpace-buildtools.git ${SRC_PATH}/buildtools && \
-    git clone --recurse-submodules -b ${GIT_BRANCH} --depth 30  https://github.com/ONLYOFFICE/DocSpace-Server.git ${SRC_PATH}/server && \
-    git clone -b "hotfix/v3.2.1" --depth 30  https://github.com/ONLYOFFICE/DocSpace-Client.git ${SRC_PATH}/client && \
-    git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/docspace-plugins.git ${SRC_PATH}/plugins && \
-    git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/ASC.Web.Campaigns.git ${SRC_PATH}/campaigns
+RUN <<EOF
+#!/bin/bash
+echo "--- clone resources ---"
+
+GITHUB_REPOS+=("https://github.com/ONLYOFFICE/DocSpace-buildtools.git ${SRC_PATH}/buildtools")
+GITHUB_REPOS+=("https://github.com/ONLYOFFICE/DocSpace-Server.git ${SRC_PATH}/server")
+GITHUB_REPOS+=("https://github.com/ONLYOFFICE/DocSpace-Client.git ${SRC_PATH}/client")
+
+for REPO in ${GITHUB_REPOS[@]}; do
+    BRANCH=${GIT_BRANCH}
+    if [[  $(git ls-remote --exit-code --heads ${REPO} ${GIT_BRANCH} | wc -l) -eq 0 ]]; then
+        BRANCH="master"
+    fi    
+    git clone --recurse-submodules -b ${BRANCH} --depth 30 ${REPO}
+    echo "git clone --recurse-submodules -b ${BRANCH} --depth 30 ${REPO}"
+done
+
+git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/docspace-plugins.git ${SRC_PATH}/plugins && \
+git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/ASC.Web.Campaigns.git ${SRC_PATH}/campaigns
+
+<<EOF
 
 WORKDIR ${SRC_PATH}/buildtools/config
 RUN <<EOF
