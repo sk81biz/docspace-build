@@ -71,7 +71,7 @@ jobs:
           docker build \
           --file ${DOCKERFILE} \
           --target ${{ env.TARGET }} \
-          --build-arg SITE_NAME=${{ env.GIT_BRANCH }} \
+          --build-arg GIT_BRANCH=${{ env.GIT_BRANCH }} \
           -t sk81biz/4testing-docspace-site-core:latest \
           .
       # - name: Build 4testing
