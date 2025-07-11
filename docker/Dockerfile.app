@@ -32,9 +32,9 @@ for REPO in ${GITHUB_REPOS[@]}; do
     BRANCH=${GIT_BRANCH}
     if [[  $(git ls-remote --exit-code --heads ${REPO} ${GIT_BRANCH} | wc -l) -eq 0 ]]; then
         BRANCH="master"
-    fi    
+    fi
+    echo " git clone --recurse-submodules -b ${BRANCH} --depth 30 ${REPO} "    
     git clone --recurse-submodules -b ${BRANCH} --depth 30 ${REPO}
-    echo "git clone --recurse-submodules -b ${BRANCH} --depth 30 ${REPO}"
 done
 
 git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/docspace-plugins.git ${SRC_PATH}/plugins && \
