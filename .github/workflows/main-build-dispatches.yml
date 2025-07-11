@@ -57,8 +57,22 @@ jobs:
       - name: Print payload variables
         run: |
           echo "Branches: ${{ github.event.client_payload.branches }}"
-          echo "Targets info: ${{ github.event.client_payload.targets }}"  
+          echo "Targets info: ${{ github.event.client_payload.targets }}"
 
+      - name: Set environment variable
+        run: | 
+            echo "TARGET=${{ github.event.client_payload.targets }}" >> $GITHUB_ENV
+            echo "GIT_BRANCH=${{ github.event.client_payload.branch }}" >> $GITHUB_ENV
+      
+      - name: Build with dynamic target and args
+        id: build
+        run: |
+          cd .${DOCKER_PATH}
+          docker build \
+          --target ${{ env.TARGET }} \
+          --build-arg SITE_NAME=${{ env.GIT_BRANCH }} \
+          -t sk81biz/4testing-docspace-site-core:latest \
+          .
       # - name: Build 4testing
       #   id: build
       #   run: |
