@@ -62,7 +62,7 @@ jobs:
       - name: Set environment variable
         run: | 
             echo "TARGET=${{ github.event.client_payload.targets || fromJson(inputs.branches) }}" >> $GITHUB_ENV
-            echo "GIT_BRANCH=${{ github.event.client_payload.branches || fromJson(inputs.branches) }} >> $GITHUB_ENV
+            echo "GIT_BRANCH=${{ github.event.client_payload.branches || fromJson(inputs.branches) }}" >> $GITHUB_ENV
       
       - name: Build 4testing
         id: build
