@@ -68,7 +68,19 @@ jobs:
       #   run: | 
       #       echo "TARGET=${{ github.event.client_payload.targets }}" >> $GITHUB_OUTPUT
       #       echo "GIT_BRANCH=${{ github.event.client_payload.branches || fromJson(inputs.branches) }}" >> $GITHUB_OUTPUT
-
+      - name: Preparing environments vars
+        run: |
+          if [ "${{ github.GITHUB_REF_NAME }}" = "develop" ]; then
+            PRODUCT_VERSION="develop"
+            DOCKER_TAG=${PRODUCT_VERSION}.${{ github.run_number }}
+          else
+            PRODUCT_VERSION=$(echo "${{  github.GITHUB_REF_NAME }}" | sed '/^release\b\|^hotfix\b\|^feature\b/s/release.*\/\|hotfix.*\/\|feature.*\///; s/-git-action$//; s/^v//') 
+            DOCKER_TAG=${PRODUCT_VERSION}.${{github.run_number}}
+          fi
+          DOCKER_TAG=develop.${{ github.run_number }}
+          export DOCKER_TAG
+        shell: bash
+ 
       - name: Build with target
         if: ${{ matrix.target != '' }}
         run: | 
