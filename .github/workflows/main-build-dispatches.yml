@@ -83,7 +83,8 @@ jobs:
             --file ${DOCKERFILE} \
             --target ${{ env.TARGET }} \
             --build-arg GIT_BRANCH=${{ env.GIT_BRANCH }} \
-            -t sk81biz/4testing-docspace-site-core:latest \
+            --build-arg BUILD_NUMBER=${BUILD_NUMBER} \
+            -t ${REPO}/${DOCKER_IMAGE_PREFIX}-site-core:${DOCKER_TAG} \
             --push \
             .
           else
