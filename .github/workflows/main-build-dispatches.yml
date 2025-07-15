@@ -61,8 +61,8 @@ jobs:
 
       - name: Set environment variable
         run: | 
-            echo "TARGET=${{ github.event.client_payload.targets }}" >> $GITHUB_ENV
-            echo "GIT_BRANCH=${{ github.event.client_payload.branch }}" >> $GITHUB_ENV
+            echo "TARGET=${{ github.event.client_payload.targets || fromJson(inputs.branches) }}" >> $GITHUB_ENV
+            echo "GIT_BRANCH=${{ github.event.client_payload.branches || fromJson(inputs.branches) }} >> $GITHUB_ENV
       
       - name: Build 4testing
         id: build
@@ -88,13 +88,13 @@ jobs:
             .
           else
            docker buildx bake -f build.yml \
-          --set *.args.GIT_BRANCH="develop" \
-          --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
-          --set *.args.BUILD_NUMBER=${BUILD_NUMBER} \
-          --set *.platform=${{ matrix.platform }} \
-          --push
+           --set *.args.GIT_BRANCH=${{ env.GIT_BRANCH }} \
+           --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
+           --set *.args.BUILD_NUMBER=${BUILD_NUMBER} \
+           --set *.platform=${{ matrix.platform }} \
+           --push
 
-          echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
+            echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
           fi 
         shell: bash
       
