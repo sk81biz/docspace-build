@@ -499,7 +499,6 @@ WORKDIR ${BUILD_PATH}/services/ASC.Site.Core/service
 COPY --from=src --chown=onlyoffice:onlyoffice ${SRC_PATH}/buildtools/install/docker/docker-entrypoint.py ./docker-entrypoint.py
 COPY --from=build-dotnet --chown=onlyoffice:onlyoffice ${SRC_PATH}/publish/services/ASC.Site.Core/service/ .
 
-ENTRYPOINT ["./docker-healthchecks-entrypoint.sh"]
 CMD ["ASC.Site.Core.dll", "ASC.Site.Core"]
 
 ## ASC.Migration.Runner ##
