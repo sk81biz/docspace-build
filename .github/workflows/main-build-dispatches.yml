@@ -68,35 +68,39 @@ jobs:
         id: build
         run: |
           cd .${DOCKER_PATH}
-          docker build \
-          --file ${DOCKERFILE} \
-          --target ${{ env.TARGET }} \
-          --build-arg GIT_BRANCH=${{ env.GIT_BRANCH }} \
-          -t sk81biz/4testing-docspace-site-core:latest \
-          --push \
-          .
-      # - name: Build 4testing
-      #   id: build
-      #   run: |
-      #     echo ${REPO}
-      #     cd .${DOCKER_PATH}
-      #     if [ "${{ github.GITHUB_REF_NAME }}" = "develop" ]; then
-      #       PRODUCT_VERSION="develop"
-      #       DOCKER_TAG=${PRODUCT_VERSION}.${{ github.run_number }}
-      #     else
-      #       PRODUCT_VERSION=$(echo "${{  github.GITHUB_REF_NAME }}" | sed '/^release\b\|^hotfix\b\|^feature\b/s/release.*\/\|hotfix.*\/\|feature.*\///; s/-git-action$//; s/^v//') 
-      #       DOCKER_TAG=${PRODUCT_VERSION}.${{github.run_number}}
-      #     fi
-      #     DOCKER_TAG=develop.${{ github.run_number }}
-      #     export DOCKER_TAG
-      #     docker buildx bake -f build.yml \
-      #     --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
-      #     --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
-      #     --set *.args.BUILD_NUMBER=${BUILD_NUMBER} \
-      #     --set *.platform=linux/amd64 \
-      #     --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
-      #     --set *.args.BUILD_NUMBER=${{github.run_number}} \
-      #     --push
+          
+      - name: Build 4testing
+        id: build
+        run: |
+          echo ${REPO}
+          cd .${DOCKER_PATH}
+          if [ "${{ github.GITHUB_REF_NAME }}" = "develop" ]; then
+            PRODUCT_VERSION="develop"
+            DOCKER_TAG=${PRODUCT_VERSION}.${{ github.run_number }}
+          else
+            PRODUCT_VERSION=$(echo "${{  github.GITHUB_REF_NAME }}" | sed '/^release\b\|^hotfix\b\|^feature\b/s/release.*\/\|hotfix.*\/\|feature.*\///; s/-git-action$//; s/^v//') 
+            DOCKER_TAG=${PRODUCT_VERSION}.${{github.run_number}}
+          fi
+          DOCKER_TAG=develop.${{ github.run_number }}
+          export DOCKER_TAG
+          if [ -n ${TARGET} ]; then
+            docker build \
+            --file ${DOCKERFILE} \
+            --target ${{ env.TARGET }} \
+            --build-arg GIT_BRANCH=${{ env.GIT_BRANCH }} \
+            -t sk81biz/4testing-docspace-site-core:latest \
+            --push \
+            .
+          else
+            docker buildx bake -f build.yml \
+            --set *.args.GIT_BRANCH=${{ github.GITHUB_REF_NAME }} \
+            --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
+            --set *.args.BUILD_NUMBER=${BUILD_NUMBER} \
+            --set *.platform=linux/amd64 \
+            --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
+            --set *.args.BUILD_NUMBER=${{github.run_number}} \
+            --push
+          fi 
 
       #     echo "version=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
       #   shell: bash
