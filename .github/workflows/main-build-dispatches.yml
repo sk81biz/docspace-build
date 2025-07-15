@@ -88,7 +88,9 @@ jobs:
         run: | 
             pwd
             ls -la
-            cd .${DOCKER_PATH}
+            cd ../${DOCKER_PATH}
+            pwd
+            ls -la
             docker build \
             --file ${DOCKERFILE} \
             --target ${{ matrix.target }} \
