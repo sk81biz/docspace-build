@@ -78,7 +78,9 @@ jobs:
             PRODUCT_VERSION=$(echo "${{  github.GITHUB_REF_NAME }}" | sed '/^release\b\|^hotfix\b\|^feature\b/s/release.*\/\|hotfix.*\/\|feature.*\///; s/-git-action$//; s/^v//') 
             DOCKER_TAG=${PRODUCT_VERSION}.${{github.run_number}}
           fi
-          echo "DOCKER_TAG=${DOCKER_TAG}" >> ${GITHUB_ENV}
+         
+          # echo "DOCKER_TAG=${DOCKER_TAG}" >> ${GITHUB_ENV}
+          echo "DOCKER_TAG=develop.${{ github.run_number }} >> ${GITHUB_ENV}"
         shell: bash
  
       - name: Build with target
