@@ -62,6 +62,7 @@ jobs:
         run: |
           echo "Branches: ${{ github.event.client_payload.branches || fromJson(inputs.branches) }}"
           echo "Targets info: ${{ github.event.client_payload.targets }}"
+          echo "Matrix branch: ${{ matrix.branch }}"
 
       # - name: Set environment variable
       #   run: | 
