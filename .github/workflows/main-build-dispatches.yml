@@ -60,13 +60,13 @@ jobs:
 
       - name: Print payload variables
         run: |
-          echo "Branches: ${{ github.event.client_payload.branches }}"
+          echo "Branches: ${{ github.event.client_payload.branches || fromJson(inputs.branches) }}"
           echo "Targets info: ${{ github.event.client_payload.targets }}"
 
-      - name: Set environment variable
-        run: | 
-            echo "TARGET=${{ github.event.client_payload.targets || fromJson(inputs.branches) }}" >> $GITHUB_ENV
-            echo "GIT_BRANCH=${{ github.event.client_payload.branches }}" >> $GITHUB_ENV
+      # - name: Set environment variable
+      #   run: | 
+      #       echo "TARGET=${{ github.event.client_payload.targets }}" >> $GITHUB_ENV
+      #       echo "GIT_BRANCH=${{ github.event.client_payload.branches || fromJson(inputs.branches) }}" >> $GITHUB_ENV
       
       # - name: Build 4testing
       #   id: build
