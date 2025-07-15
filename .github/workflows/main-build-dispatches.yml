@@ -80,7 +80,7 @@ jobs:
           fi
          
           # echo "DOCKER_TAG=${DOCKER_TAG}" >> ${GITHUB_ENV}
-          echo "DOCKER_TAG=develop.${{ github.run_number }} >> ${GITHUB_ENV}"
+          echo "DOCKER_TAG=develop.${{ github.run_number }}" >> ${GITHUB_ENV}
         shell: bash
  
       - name: Build with target
