@@ -86,6 +86,7 @@ jobs:
       - name: Build with target
         if: ${{ matrix.target != '' }}
         run: | 
+            cd .${DOCKER_PATH}
             docker build \
             --file ${DOCKERFILE} \
             --target ${{ matrix.target }} \
