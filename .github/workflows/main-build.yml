@@ -62,12 +62,7 @@ jobs:
           fi
           DOCKER_TAG=develop.${{ github.run_number }}
           export DOCKER_TAG
-          docker buildx bake \
-          onlyoffice-login \
-          onlyoffice-doceditor \
-          onlyoffice-sdk \
-          onlyoffice-management \ 
-          -f build.yml \
+          docker buildx bake onlyoffice-login onlyoffice-doceditor onlyoffice-sdk onlyoffice-management --file build.yml \
           --set *.args.GIT_BRANCH="develop"" \
           --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
           --set *.args.BUILD_NUMBER=${BUILD_NUMBER} \
