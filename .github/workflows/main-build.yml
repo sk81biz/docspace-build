@@ -66,7 +66,7 @@ jobs:
           onlyoffice-login \
           onlyoffice-doceditor \
           onlyoffice-sdk \
-          nlyoffice-management \ 
+          onlyoffice-management \ 
           -f build.yml \
           --set *.args.GIT_BRANCH="develop"" \
           --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
