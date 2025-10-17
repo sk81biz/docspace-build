@@ -123,6 +123,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+         aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         aws-region:            ${{ secrets.AWS_REGION }}
+
       - name: Build & push (node)
         uses: docker/build-push-action@v6
         with:
@@ -167,7 +173,7 @@ jobs:
       - name: Free space (conditional)
         if: steps.disk.outputs.needs_cleanup == 'true'
         run: |
-          curl https://raw.githubusercontent.com/ONLYOFFICE/DocSpace-buildtools/refs/heads/develop/.github/scripts/free-disk-space-linux.sh://raw.githubusercontent.com/ONLYOFFICE/DocSpace-buildtools/refs/heads/release/v3.5.0/.github/scripts/free-disk-space-linux.sh
+          curl https://raw.githubusercontent.com/ONLYOFFICE/DocSpace-buildtools/refs/heads/develop/.github/scripts/free-disk-space-linux.sh://raw.githubusercontent.com/ONLYOFFICE/DocSpace-buildtools/refs/heads/release/v3.5.0/.github/scripts/free-disk-space-linux.sh | sudo bash
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
