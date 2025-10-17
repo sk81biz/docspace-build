@@ -1,0 +1,124 @@
+ARG SRC_PATH="/app/onlyoffice/src"
+ARG BUILD_PATH="/var/www"
+ARG DOTNET_SDK="mcr.microsoft.com/dotnet/sdk:9.0"
+ARG DOTNET_RUN="mcr.microsoft.com/dotnet/aspnet:9.0-noble"
+
+# Image resources
+FROM python:3.12-slim AS src
+ARG GIT_BRANCH="master"
+ARG SRC_PATH
+ARG BUILD_PATH
+ARG PRODUCT_VERSION=0.0.0
+ARG BUILD_NUMBER=0
+ARG DEBUG_INFO="true"
+
+ARG BUILDTOOLS_REPO="https://github.com/ONLYOFFICE/DocSpace-buildtools.git"
+ARG SERVER_REPO="https://github.com/ONLYOFFICE/DocSpace-Server.git"
+ARG CLIENT_REPO="https://github.com/ONLYOFFICE/DocSpace-Client.git"
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+    git ; \
+    rm -rf /var/lib/apt/lists/*
+
+ADD https://api.github.com/repos/ONLYOFFICE/DocSpace-buildtools/git/refs/heads/${GIT_BRANCH} version.json
+RUN <<EOF
+#!/bin/bash
+echo "--- clone resources ---"
+
+git clone --recurse-submodules -b $(echo "$(git ls-remote --exit-code --heads "${BUILDTOOLS_REPO}" "${GIT_BRANCH}"\
+ > /dev/null 2>&1 && echo "${GIT_BRANCH}" || echo "master")") --depth 30 ${BUILDTOOLS_REPO} ${SRC_PATH}/buildtools && \
+
+git clone --recurse-submodules -b $(echo "$(git ls-remote --exit-code --heads "${SERVER_REPO}" "${GIT_BRANCH}"\
+ > /dev/null 2>&1 && echo "${GIT_BRANCH}" || echo "master")") --depth 30 ${SERVER_REPO} ${SRC_PATH}/server && \
+
+git clone -b $(echo "$(git ls-remote --exit-code --heads "${CLIENT_REPO}" "${GIT_BRANCH}"\
+ > /dev/null 2>&1 && echo "${GIT_BRANCH}" || echo "master")") --depth 30 ${CLIENT_REPO} ${SRC_PATH}/client && \
+
+git clone -b "$( [ "$GIT_BRANCH" = develop ] && echo develop || echo master )" --depth 1 https://github.com/ONLYOFFICE/docspace-plugins.git ${SRC_PATH}/plugins && \
+git clone -b "master" --depth 1 https://github.com/ONLYOFFICE/ASC.Web.Campaigns.git ${SRC_PATH}/campaigns
+EOF
+
+WORKDIR ${SRC_PATH}/buildtools/config
+RUN <<EOF
+    echo "--- customize config base files ---" && \
+    mkdir -p /app/onlyoffice/config/ && \
+    ls | grep -Ev 'test|\.dev\.|nginx' | xargs cp -r -t /app/onlyoffice/config/
+    cd ${SRC_PATH}
+    mkdir -p /etc/nginx/conf.d && cp -f buildtools/config/nginx/onlyoffice*.conf /etc/nginx/conf.d/
+    mkdir -p /etc/nginx/includes/ && cp -f buildtools/config/nginx/includes/onlyoffice*.conf /etc/nginx/includes/ && cp -f buildtools/config/nginx/includes/server-*.conf /etc/nginx/includes/
+    sed -i "s/\"number\".*,/\"number\": \"${PRODUCT_VERSION}.${BUILD_NUMBER}\",/g" /app/onlyoffice/config/appsettings.json
+    sed -e 's/#//' -i /etc/nginx/conf.d/onlyoffice.conf
+    if [ "$DEBUG_INFO" = true ]; then
+    echo "--- add customized debuginfo ---" && \
+        pip install -r ${SRC_PATH}/buildtools/requirements.txt --break-system-packages
+        python3 ${SRC_PATH}/buildtools/debuginfo.py
+    fi 
+EOF
+
+# .net build
+FROM $DOTNET_SDK AS build-dotnet
+ARG DEBIAN_FRONTEND=noninteractive
+ARG SRC_PATH
+
+WORKDIR ${SRC_PATH}/server
+COPY --from=src ${SRC_PATH}/server/ .
+
+RUN echo "--- build/publishh docspace-server .net 9.0 ---" && \
+    dotnet build ASC.Web.slnf && \
+    dotnet build ASC.Migrations.sln --property:OutputPath=${SRC_PATH}/publish/services/ASC.Migration.Runner/service/ && \
+    dotnet publish ASC.Web.slnf -p PublishProfile=ReleaseProfile && \
+    rm -rf ${SRC_PATH}/server/*
+
+# node build
+FROM node:22-slim AS build-node
+ARG SRC_PATH
+ARG BUILD_ARGS="build"
+ARG DEPLOY_ARGS="deploy"
+
+# build services Socket, SsoAuth from DocSpace-server 
+WORKDIR ${SRC_PATH}/server
+COPY --from=src ${SRC_PATH}/server/common/ASC.Socket.IO ./common/ASC.Socket.IO
+COPY --from=src ${SRC_PATH}/server/common/ASC.SsoAuth ./common/ASC.SsoAuth
+
+RUN echo "--- build/publish ASC.Socket.IO ---" && \ 
+    cd ${SRC_PATH}/server/common/ASC.Socket.IO &&\
+    yarn install --immutable &&\
+    echo "--- build/publish ASC.SsoAuth ---" && \ 
+    cd ${SRC_PATH}/server/common/ASC.SsoAuth &&\
+    yarn install --immutable
+
+# build frondend from DocSpace-client
+WORKDIR ${SRC_PATH}
+COPY --from=src ${SRC_PATH}/buildtools/config ./buildtools/config
+COPY --from=src ${SRC_PATH}/client/ ./client
+
+WORKDIR ${SRC_PATH}/client
+RUN echo "--- installing pnpm ---" && \
+    npm install -g pnpm && \
+    echo "--- build/publish docspace-client node ---" && \
+    pnpm install && \
+    pnpm ${BUILD_ARGS} && \
+    pnpm run ${DEPLOY_ARGS} && \
+    rm -rf ${SRC_PATH}/client/*
+
+# build plugins
+COPY --from=src ${SRC_PATH}/plugins ${SRC_PATH}/plugins
+WORKDIR ${SRC_PATH}/buildtools/install/common
+COPY --from=src ${SRC_PATH}/buildtools/install/common/plugins-build.sh ./plugins-build.sh
+RUN echo "--- build/publish plugins ---" && \
+    apt-get update && apt-get install -y unzip && \
+    bash plugins-build.sh "${SRC_PATH}/plugins"
+
+# java build
+FROM maven:3.9-eclipse-temurin-21 AS java-build
+ARG SRC_PATH
+
+WORKDIR ${SRC_PATH}/server/common/ASC.Identity/
+COPY --from=src ${SRC_PATH}/server/common/ASC.Identity/ .
+
+RUN echo "--- build/publish docspace-server java (ASC.Identity) ---" && \
+    mvn -B dependency:go-offline && \
+    mvn clean package -B -DskipTests -pl authorization/authorization-container -am && \
+    mvn clean package -B -DskipTests -pl registration/registration-container -am 

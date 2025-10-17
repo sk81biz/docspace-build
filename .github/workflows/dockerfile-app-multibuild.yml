@@ -1,0 +1,282 @@
+name: parallel-multilang-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      branches:
+        description: "JSON array of branches"
+        required: true
+        default: '["develop"]'
+
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        branch: ${{ fromJson(inputs.branches) }}
+    outputs:
+      PRODUCT_VERSION: ${{ steps.init.outputs.PRODUCT_VERSION }}
+      DOCKER_TAG_BASE: ${{ steps.init.outputs.DOCKER_TAG_BASE }}
+      BRANCH:          ${{ matrix.branch }}
+    steps:
+      - name: Compute version + tag base
+        id: init
+        shell: bash
+        run: |
+          if [ "${{ matrix.branch }}" = "develop" ]; then
+            PRODUCT_VERSION="develop"
+          else
+            PRODUCT_VERSION="$(echo "${{ matrix.branch }}" | sed '/^release\b\|^hotfix\b\|^feature\b/s/release.*\/\|hotfix.*\/\|feature.*\///; s/-git-action$//; s/^v//')"
+          fi
+          DOCKER_TAG_BASE="${PRODUCT_VERSION}.${{ github.run_number }}"
+          echo "PRODUCT_VERSION=$PRODUCT_VERSION"  >> "$GITHUB_OUTPUT"
+          echo "DOCKER_TAG_BASE=$DOCKER_TAG_BASE"  >> "$GITHUB_OUTPUT"
+
+  build-java:
+    needs: init
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux/amd64] # add linux/arm64 if needed
+    env:
+      PRODUCT_VERSION: ${{ needs.init.outputs.PRODUCT_VERSION }}
+      DOCKER_TAG:      ${{ needs.init.outputs.DOCKER_TAG_BASE }}-java
+      BRANCH:          ${{ needs.init.outputs.BRANCH }}
+      CACHE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-cache
+      IMAGE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-java
+    steps:
+      - uses: actions/checkout@v4
+        with: 
+         ref: ${{ env.BRANCH }}
+
+      - name: Check disk space
+        id: disk
+        run: |
+          avail_mb="$(df -Pm / | awk 'NR==2{print $4}')"
+          echo "needs_cleanup=$([ "$avail_mb" -lt 20000 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Free space (conditional)
+        if: steps.disk.outputs.needs_cleanup == 'true'
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/${{ env.BRANCH }}/.github/scripts/free-disk-space-linux.sh" | sudo bash
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push (java)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.app.multibuild
+          target: app-java                  # <- target stage in your multibuild Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_NS }}:${{ env.DOCKER_TAG }}
+            ${{ env.IMAGE_NS }}:latest
+          build-args: |
+            GIT_BRANCH=${{ env.BRANCH }}
+            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
+            BUILD_NUMBER=${{ github.run_number }}
+          cache-from: type=registry,ref=${{ env.CACHE_NS }}:java
+          cache-to:   type=registry,ref=${{ env.CACHE_NS }}:java,mode=max
+
+  build-node:
+    needs: init
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux/amd64]
+    env:
+      PRODUCT_VERSION: ${{ needs.init.outputs.PRODUCT_VERSION }}
+      DOCKER_TAG:      ${{ needs.init.outputs.DOCKER_TAG_BASE }}-node
+      BRANCH:          ${{ needs.init.outputs.BRANCH }}
+      CACHE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-cache
+      IMAGE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-node
+    steps:
+      - uses: actions/checkout@v4
+        with:  
+         ref: ${{ env.BRANCH }}
+
+      - name: Check disk space
+        id: disk
+        run: |
+          avail_mb="$(df -Pm / | awk 'NR==2{print $4}')"
+          echo "needs_cleanup=$([ "$avail_mb" -lt 20000 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Free space (conditional)
+        if: steps.disk.outputs.needs_cleanup == 'true'
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/${{ env.BRANCH }}/.github/scripts/free-disk-space-linux.sh" | sudo bash
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push (node)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.app.multibuild
+          target: app-node
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_NS }}:${{ env.DOCKER_TAG }}
+            ${{ env.IMAGE_NS }}:latest
+          build-args: |
+            GIT_BRANCH=${{ env.BRANCH }}
+            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
+            BUILD_NUMBER=${{ github.run_number }}
+          cache-from: type=registry,ref=${{ env.CACHE_NS }}:node
+          cache-to:   type=registry,ref=${{ env.CACHE_NS }}:node,mode=max
+
+  build-dotnet:
+    needs: init
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux/amd64]
+    env:
+      PRODUCT_VERSION: ${{ needs.init.outputs.PRODUCT_VERSION }}
+      DOCKER_TAG:      ${{ needs.init.outputs.DOCKER_TAG_BASE }}-dotnet
+      BRANCH:          ${{ needs.init.outputs.BRANCH }}
+      CACHE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-cache
+      IMAGE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-dotnet
+      DOCKER_PATH:     ${{ env.DOCKER_PATH }} # if you still need it
+    steps:
+      - uses: actions/checkout@v4
+        with: 
+         ref: ${{ env.BRANCH }}
+
+      - name: Check disk space
+        id: disk
+        run: |
+          avail_mb="$(df -Pm / | awk 'NR==2{print $4}')"
+          echo "needs_cleanup=$([ "$avail_mb" -lt 20000 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Free space (conditional)
+        if: steps.disk.outputs.needs_cleanup == 'true'
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/${{ env.BRANCH }}/.github/scripts/free-disk-space-linux.sh" | sudo bash
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push (dotnet)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.app.multibuild
+          target: app-dotnet
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_NS }}:${{ env.DOCKER_TAG }}
+            ${{ env.IMAGE_NS }}:latest
+          build-args: |
+            GIT_BRANCH=${{ env.BRANCH }}
+            PRODUCT_VERSION=${{ env.PRODUCT_VERSION }}
+            BUILD_NUMBER=${{ github.run_number }}
+          cache-from: type=registry,ref=${{ env.CACHE_NS }}:dotnet
+          cache-to:   type=registry,ref=${{ env.CACHE_NS }}:dotnet,mode=max
+
+
+
+
+
+
+
+
+
+
+
+
+
+# name: Build from Dockerfile.app.multibuild 
+
+# on:
+#   push:
+#     branches:
+#       - 'hotfix/v*'
+#       - 'release/v*'
+#       - 'develop'
+#     paths:
+#       - '.github/workflows/dockerfile-app-multibuld.yml'
+#       - '/docker/Dockerfile.app.multibuild'
+          
+#   workflow_dispatch:
+
+# env:
+#   DOCKER_PATH: "/docker"
+#   REPO: ${{ secrets.DOCKERHUB_USERNAME }}
+#   DOCKER_IMAGE_PREFIX: "4testing-docspace"
+#   DOCKERFILE: "Dockerfile.app.multibuild"
+
+
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     strategy:
+#       matrix:
+#         platform: [linux/amd64]
+#         branch: ${{ github.event.client_payload.branches || fromJson(inputs.branches) }}
+#     outputs:
+#       DOCKER_TAG: ${{ steps.build.outputs.DOCKER_TAG }}
+#     steps:
+#       - name: Free Disk Space
+#         run: |
+#           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/${{ matrix.branch }}/.github/scripts/free-disk-space-linux.sh | sudo bash
+
+#       - name: Checkout
+#         uses: actions/checkout@v3
+#         with:
+#           ref: ${{ matrix.branch }}
+
+#       - name: Set up QEMU
+#         uses: docker/setup-qemu-action@v2
+
+#       - name: Set up Docker Buildx
+#         id: buildx
+#         uses: docker/setup-buildx-action@v2
+
+#       - name: Login to DockerHub
+#         uses: docker/login-action@v2
+#         with:
+#           username: ${{ secrets.DOCKERHUB_USERNAME }}
+#           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+#       - name: Build build-dotnet
+#         id: build-dotnet
+#         run: |
+#           cd .${DOCKER_PATH}
+#           if [ "${{ matrix.branch }}" = "develop" ]; then
+#             PRODUCT_VERSION="develop"
+#             DOCKER_TAG=${PRODUCT_VERSION}.${{ github.run_number }}
+#           else
+#             PRODUCT_VERSION=$(echo "${{ matrix.branch }}" | sed '/^release\b\|^hotfix\b\|^feature\b/s/release.*\/\|hotfix.*\/\|feature.*\///; s/-git-action$//; s/^v//') 
+#             DOCKER_TAG=${PRODUCT_VERSION}.${{github.run_number}}
+#           fi
+#           export DOCKER_TAG
+#           echo "DOCKER_TAG=${DOCKER_TAG}" >> ${GITHUB_OUTPUT}
+#           docker buildx bake --sbom=true --provenance=mode=max -f build.yml \
+#           --set *.args.GIT_BRANCH=${{ matrix.branch }} \
+#           --set *.args.PRODUCT_VERSION=${PRODUCT_VERSION} \
+#           --set *.args.BUILD_NUMBER=${BUILD_NUMBER} \
+#           --set *.platform=linux/amd64 \
+#           --set *.args.BUILD_NUMBER=${{github.run_number}} \
+#           --push
+
+#         shell: bash
+  
