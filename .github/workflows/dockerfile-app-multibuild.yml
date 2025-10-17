@@ -1,12 +1,14 @@
 name: parallel-multilang-build
 
 on:
-  workflow_dispatch:
-    inputs:
-      branches:
-        description: "JSON array of branches"
-        required: true
-        default: '["develop"]'
+  push:
+    branches:
+      - 'hotfix/v*'
+      - 'release/v*'
+      - 'develop'
+    paths:
+      - '.github/workflows/dockerfile-app-multibuld.yml'
+      - '/docker/Dockerfile.app.multibuild'
 
 jobs:
   init:
