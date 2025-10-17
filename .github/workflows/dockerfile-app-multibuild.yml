@@ -56,7 +56,7 @@ jobs:
         id: disk
         run: |
           avail_mb="$(df -Pm / | awk 'NR==2{print $4}')"
-          echo "needs_cleanup=$([ "$avail_mb" -lt 40000 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "needs_cleanup=$([ "$avail_mb" -lt 20000 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - name: Free space (conditional)
         if: steps.disk.outputs.needs_cleanup == 'true'
@@ -109,7 +109,7 @@ jobs:
         id: disk
         run: |
           avail_mb="$(df -Pm / | awk 'NR==2{print $4}')"
-          echo "needs_cleanup=$([ "$avail_mb" -lt 40000 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "needs_cleanup=$([ "$avail_mb" -lt 20000 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - name: Free space (conditional)
         if: steps.disk.outputs.needs_cleanup == 'true'
