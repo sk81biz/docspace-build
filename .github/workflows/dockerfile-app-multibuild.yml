@@ -75,7 +75,7 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.app.multibuild 
-          target: app-java                  # <- target stage in your multibuild Dockerfile
+          target: java-build                  # <- target stage in your multibuild Dockerfile
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
@@ -128,7 +128,7 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.app.multibuild 
-          target: app-node
+          target: build-node
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
@@ -181,7 +181,7 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.app.multibuild 
-          target: app-dotnet
+          target:  build-dotnet
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
