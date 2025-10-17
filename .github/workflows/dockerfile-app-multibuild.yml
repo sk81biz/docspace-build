@@ -74,7 +74,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.app.multibuild
+          file: docker/Dockerfile.app.multibuild 
           target: app-java                  # <- target stage in your multibuild Dockerfile
           platforms: ${{ matrix.platform }}
           push: true
@@ -127,7 +127,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.app.multibuild
+          file: docker/Dockerfile.app.multibuild 
           target: app-node
           platforms: ${{ matrix.platform }}
           push: true
@@ -180,7 +180,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.app.multibuild
+          file: docker/Dockerfile.app.multibuild 
           target: app-dotnet
           platforms: ${{ matrix.platform }}
           push: true
