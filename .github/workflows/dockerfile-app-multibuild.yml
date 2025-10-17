@@ -1,36 +1,39 @@
 name: parallel-multilang-build
 
 on:
-  workflow_dispatch:
-    inputs:
-      branches:
-        description: "JSON array of branches"
-        required: true
-        default: '["develop"]'
-      
+  push:
+    branches:
+      - 'hotfix/v*'
+      - 'release/v*'
+      - 'develop'
+    paths:
+      - '.github/workflows/dockerfile-app-multibuild.yml'
+      - 'docker/Dockerfile.app.multibuild'   # ← remove the leading slash
+
 jobs:
   init:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        branch: ${{ fromJson(inputs.branches) }}
     outputs:
       PRODUCT_VERSION: ${{ steps.init.outputs.PRODUCT_VERSION }}
       DOCKER_TAG_BASE: ${{ steps.init.outputs.DOCKER_TAG_BASE }}
-      BRANCH:          ${{ matrix.branch }}
+      BRANCH:          ${{ steps.init.outputs.BRANCH }}
     steps:
-      - name: Compute version + tag base
+      - name: Init
         id: init
         shell: bash
         run: |
-          if [ "${{ matrix.branch }}" = "develop" ]; then
+          BRANCH="${{ github.ref_name }}"
+          if [ "$BRANCH" = "develop" ]; then
             PRODUCT_VERSION="develop"
           else
-            PRODUCT_VERSION="$(echo "${{ matrix.branch }}" | sed '/^release\b\|^hotfix\b\|^feature\b/s/release.*\/\|hotfix.*\/\|feature.*\///; s/-git-action$//; s/^v//')"
+            PRODUCT_VERSION="$(echo "$BRANCH" | sed '/^release\b\|^hotfix\b\|^feature\b/s/release.*\/\|hotfix.*\/\|feature.*\///; s/-git-action$//; s/^v//')"
           fi
           DOCKER_TAG_BASE="${PRODUCT_VERSION}.${{ github.run_number }}"
-          echo "PRODUCT_VERSION=$PRODUCT_VERSION"  >> "$GITHUB_OUTPUT"
-          echo "DOCKER_TAG_BASE=$DOCKER_TAG_BASE"  >> "$GITHUB_OUTPUT"
+
+          echo "BRANCH=$BRANCH"                       >> "$GITHUB_OUTPUT"
+          echo "PRODUCT_VERSION=$PRODUCT_VERSION"     >> "$GITHUB_OUTPUT"
+          echo "DOCKER_TAG_BASE=$DOCKER_TAG_BASE"     >> "$GITHUB_OUTPUT"
+
 
   build-java:
     needs: init
