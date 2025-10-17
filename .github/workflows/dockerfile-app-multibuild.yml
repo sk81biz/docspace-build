@@ -7,7 +7,7 @@ on:
       - 'release/v*'
       - 'develop'
     paths:
-      - '.github/workflows/dockerfile-app-multibuld.yml'
+      - '.github/workflows/dockerfile-app-multibuild.yml'
       - '/docker/Dockerfile.app.multibuild'
 
 jobs:
