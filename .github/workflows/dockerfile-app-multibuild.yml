@@ -150,7 +150,6 @@ jobs:
       BRANCH:          ${{ needs.init.outputs.BRANCH }}
       CACHE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-cache
       IMAGE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-dotnet
-      DOCKER_PATH:     ${{ env.DOCKER_PATH }} # if you still need it
     steps:
       - uses: actions/checkout@v4
         with: 
