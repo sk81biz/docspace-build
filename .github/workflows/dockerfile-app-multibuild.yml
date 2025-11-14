@@ -154,6 +154,8 @@ jobs:
 
       - name: Compute pnpm cache key
         # uses pnpm-lock.yaml FROM THE REPO
+        id: nodekey
+        shell: bash
         run: |
           mkdir -p .cache/node/pnpm-store
           LOCKHASH=$(sha256sum pnpm-lock.yaml | awk '{print $1}')
@@ -161,7 +163,10 @@ jobs:
           echo "S3_PREFIX=s3://github-docker-cache-build/test-nodejs-cache/$LOCKHASH" >> "$GITHUB_OUTPUT"
 
       - name: Restore pnpm store from S3
+        if: env.USE_AWS_BUCKET_CACHE == 'true'
+        shell: bash
         run: |
+         echo "DEBUG S3 prefix: ${{ steps.nodekey.outputs.S3_PREFIX }}/pnpm-store"
          aws s3 sync "${{ steps.nodekey.outputs.S3_PREFIX }}/pnpm-store" ".cache/node/pnpm-store" --no-progress || true
 
       - name: Prewarm store with lockfile
