@@ -17,6 +17,7 @@ jobs:
       PRODUCT_VERSION: ${{ steps.init.outputs.PRODUCT_VERSION }}
       DOCKER_TAG_BASE: ${{ steps.init.outputs.DOCKER_TAG_BASE }}
       BRANCH:          ${{ steps.init.outputs.BRANCH }}
+      USE_AWS_BUCKET_CACHE:  ${{ steps.s3check.outputs.use_cache }}
     steps:
       - name: Init
         id: init
@@ -33,7 +34,28 @@ jobs:
           echo "BRANCH=$BRANCH"                       >> "$GITHUB_OUTPUT"
           echo "PRODUCT_VERSION=$PRODUCT_VERSION"     >> "$GITHUB_OUTPUT"
           echo "DOCKER_TAG_BASE=$DOCKER_TAG_BASE"     >> "$GITHUB_OUTPUT"
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
 
+      - name: Check S3 & set USE_AWS_BUCKET_CACHE
+        id: s3check
+        shell: bash
+        env:
+          S3_BUCKET: github-docker-cache-build
+        run: |
+          set -euo pipefail
+          if aws s3api head-bucket --bucket "$S3_BUCKET" >/dev/null 2>&1; then
+            echo "S3 reachable: s3://$S3_BUCKET/"
+            echo "use_cache=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "S3 NOT reachable: s3://$S3_BUCKET (disabling cache)"
+            echo "use_cache=false" >> "$GITHUB_OUTPUT"
+          fi
 
   build-java:
     needs: init
@@ -100,6 +122,7 @@ jobs:
       BRANCH:          ${{ needs.init.outputs.BRANCH }}
       CACHE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-cache
       IMAGE_NS:        ${{ secrets.DOCKERHUB_USERNAME }}/app-node
+      USE_AWS_BUCKET_CACHE: ${{ needs.init.outputs.USE_AWS_BUCKET_CACHE }}
     steps:
       - uses: actions/checkout@v4
         with:  
@@ -129,6 +152,25 @@ jobs:
          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
          aws-region:            ${{ secrets.AWS_REGION }}
 
+      - name: Compute pnpm cache key
+        # uses pnpm-lock.yaml FROM THE REPO
+        run: |
+          mkdir -p .cache/node/pnpm-store
+          LOCKHASH=$(sha256sum pnpm-lock.yaml | awk '{print $1}')
+          echo "LOCKHASH=$LOCKHASH" >> "$GITHUB_OUTPUT"
+          echo "S3_PREFIX=s3://github-docker-cache-build/test-nodejs-cache/$LOCKHASH" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm store from S3
+        run: |
+         aws s3 sync "${{ steps.nodekey.outputs.S3_PREFIX }}/pnpm-store" ".cache/node/pnpm-store" --no-progress || true
+
+      - name: Prewarm store with lockfile
+        env:
+          PNPM_STORE_PATH: .cache/node/pnpm-store
+        run: |
+         echo "store-dir=$PNPM_STORE_PATH" >> .npmrc
+         pnpm fetch --frozen-lockfile
+
       - name: Build & push (node)
         uses: docker/build-push-action@v6
         with:
@@ -146,6 +188,11 @@ jobs:
             BUILD_NUMBER=${{ github.run_number }}
           cache-from: type=registry,ref=${{ env.CACHE_NS }}:node
           cache-to:   type=registry,ref=${{ env.CACHE_NS }}:node,mode=max
+      
+      - name: Upload pnpm store to S3
+        if: always() && env.USE_AWS_BUCKET_CACHE == 'true'
+        run: |
+          aws s3 sync ".cache/node/pnpm-store" "${{ steps.nodekey.outputs.S3_PREFIX }}/pnpm-store" --no-progress --delete
 
   build-dotnet:
     needs: init
